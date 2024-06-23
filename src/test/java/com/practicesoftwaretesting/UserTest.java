@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class UserTest {
 
-    public  String userEmail = getUserEmail();
+    public String userEmail = getUserEmail();
     public static final String USER_PASSWORD = "Super-secret211@@";
 
     static {
