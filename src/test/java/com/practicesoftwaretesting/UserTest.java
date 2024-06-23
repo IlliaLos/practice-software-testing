@@ -1,90 +1,44 @@
 package com.practicesoftwaretesting;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.github.javafaker.Faker;
-import io.restassured.RestAssured;
-import io.restassured.builder.RequestSpecBuilder;
-import io.restassured.builder.ResponseSpecBuilder;
-import io.restassured.filter.log.LogDetail;
-import io.restassured.http.ContentType;
+import com.practicesoftwaretesting.user.UserController;
+import com.practicesoftwaretesting.user.model.LoginRequest;
+import com.practicesoftwaretesting.user.model.LoginResponse;
+import com.practicesoftwaretesting.user.model.RegisterUserRequest;
+import com.practicesoftwaretesting.user.model.RegisterUserResponse;
 import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class UserTest {
+public class UserTest extends BaseTest {
 
-    public String userEmail = getUserEmail();
+    public String userEmail;
     public static final String USER_PASSWORD = "Super-secret211@@";
 
-    static {
-        configureRestAssured();
-        RestAssured.requestSpecification = new RequestSpecBuilder()
-                .setBaseUri("https://api.practicesoftwaretesting.com")
-                .log(LogDetail.ALL)
-                .build();
-        RestAssured.responseSpecification = new ResponseSpecBuilder()
-                .log(LogDetail.ALL)
-                .build();
-    }
-
-    private static void configureRestAssured() {
-        var objectMapper = new ObjectMapper();
-        objectMapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-
-        RestAssured.config = RestAssured.config()
-                .objectMapperConfig(
-                        RestAssured.config()
-                                .getObjectMapperConfig()
-                                .jackson2ObjectMapperFactory((cls, charset) -> objectMapper)
-                );
-    }
-
-    @Test
-    void testBrands() {
-        RestAssured.given()
-                .get("/brands")
-                .then()
-                .statusCode(200);
-    }
+    UserController userController = new UserController();
 
     @Test
     void testUser() {
-        //Register user
+        userEmail = getUserEmail();
+
         var registerUserRequest = buildUser();
-        var registerUserResponse = RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body(registerUserRequest)
-                .post("/users/register")
+        var registerUserResponse = userController.registerUser(registerUserRequest)
                 .as(RegisterUserResponse.class);
         assertNotNull(registerUserResponse.getId());
 
-        //Login
         var loginRequestBody = new LoginRequest(userEmail, USER_PASSWORD);
-        var loginResponse = loginUser(loginRequestBody);
+        var loginResponse = userController.loginUser(loginRequestBody)
+                .as(LoginResponse.class);;
         assertNotNull(loginResponse.getAccessToken());
 
-        //Login as admin
         var adminLoginRequestBody = new LoginRequest("admin@practicesoftwaretesting.com", "welcome01");
-        var adminLoginResponse = loginUser(adminLoginRequestBody);
+        var adminLoginResponse = userController.loginUser(adminLoginRequestBody)
+                .as(LoginResponse.class);
 
-        //Delete user
         var userId = registerUserResponse.getId();
         var token = adminLoginResponse.getAccessToken();
-        RestAssured.given()
-                .contentType(ContentType.JSON)
-                .header("Authorization", "Bearer " + token)
-                .delete("users/" + userId)
+        userController.deleteUser(userId, token)
                 .then()
                 .statusCode(204);
-    }
-
-    private LoginResponse loginUser(LoginRequest loginRequestBody) {
-        return RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body(loginRequestBody)
-                .post("/users/login")
-                .as(LoginResponse.class);
     }
 
     private RegisterUserRequest buildUser() {
